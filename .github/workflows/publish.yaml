@@ -119,7 +119,7 @@ jobs:
         with:
           args: |
             --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
-            --features ${{ env.channel == 'nightly' && 'devtools' || '' }} # first value after && should be truthy
+            --features ${{ env.channel == 'nightly' && 'devtools' || '' }}
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
