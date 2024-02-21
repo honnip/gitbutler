@@ -78,7 +78,7 @@ jobs:
           passphrase: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
 
       - name: Build
-        uses: tauri-apps/tauri-actions@v0
+        uses: tauri-apps/tauri-action@v0
         env:
           # GitHub Release
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
