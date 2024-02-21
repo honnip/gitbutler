@@ -50,14 +50,29 @@ jobs:
       - name: Setup Rust cache
         uses: swatinem/rust-cache@v2
 
-      - name: Setup node and cache
-        uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@3
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
         with:
-          node-version: 'lts/*'
-          cache: 'pnpm'
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
 
       - name: Use input params
         run: |
@@ -104,6 +119,7 @@ jobs:
           prerelease: ${{ env.channel == 'release' && false || true }}
 
       - name: Copy binaries
+        shell: bash
         run: |
           os=$(uname -s)
           arch=$(uname -m)
