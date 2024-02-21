@@ -78,6 +78,7 @@ jobs:
           node-version: 'lts/*'
 
       - name: Use input params
+        shell: bash
         run: |
           echo "channel=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
           echo "bump=${{ github.event.inputs.release-type }}" >> $GITHUB_ENV
@@ -117,7 +118,7 @@ jobs:
           #TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           args: |
-            --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}' \
+            --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
             --features ${{ env.channel == 'release' && '' || 'devtools' }}
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
@@ -148,9 +149,9 @@ jobs:
 
       #- name: Tell our server to update
       #  run: |
-      #    curl 'https://app.gitbutler.com/api/releases' \
-      #      --fail \
-      #      --request POST \
-      #      --header 'Content-Type: application/json' \
-      #      --header 'X-Auth-Token: ${{ secrets.BOT_AUTH_TOKEN }}' \
+      #    curl 'https://app.gitbutler.com/api/releases'
+      #      --fail
+      #      --request POST
+      #      --header 'Content-Type: application/json'
+      #      --header 'X-Auth-Token: ${{ secrets.BOT_AUTH_TOKEN }}'
       #      --data '{"channel":"${{ env.channel }}","version":"${{ env.version }}-${{ github.run_number }}","sha":"${{ github.sha }}"}'
