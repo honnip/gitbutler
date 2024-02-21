@@ -21,6 +21,8 @@ on:
 
 jobs:
   publish:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -101,7 +103,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           # GitHub Release
-          #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           #AppImage signing
           #SIGN: 1
           #SIGN_KEY: ${{ secrets.APPIMAGE_KEY_ID }}
@@ -118,13 +120,13 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           args: |
-            --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
+            --config ${{ env.channel == 'nightly' && 'gitbutler-app/tauri.conf.nightly.json' || 'gitbutler-app/tauri.conf.release.json' }}
             --features ${{ env.channel == 'nightly' && 'devtools' || '' }}
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
           releaseDraft: true
-          prerelease: ${{ env.channel == 'release' && false || true }}
+          prerelease: ${{ env.channel == 'nightly' && true || false }}
 
       - name: Copy binaries
         shell: bash
