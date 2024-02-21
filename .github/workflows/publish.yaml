@@ -51,7 +51,7 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@3
+        uses: pnpm/action-setup@v3
 
       - name: Get pnpm store directory
         shell: bash
