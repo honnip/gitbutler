@@ -99,7 +99,7 @@ jobs:
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
-        #env:
+        env:
           # GitHub Release
           #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           #AppImage signing
@@ -114,12 +114,12 @@ jobs:
           #APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           #APPLE_TEAM_ID: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
           # Updater for NSIS, MSI, AppImage, App bundle
-          #TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          #TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           args: |
             --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
-            --features ${{ env.channel == 'release' && '' || 'devtools' }}
+            --features ${{ env.channel == 'nightly' && 'devtools' || '' }} # first value after && should be truthy
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
