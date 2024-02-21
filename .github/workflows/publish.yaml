@@ -88,12 +88,12 @@ jobs:
           NEXT_VERSION=$(./scripts/next.sh "${CURRENT_VERSION}" "${{ env.bump }}")
           echo "version=$NEXT_VERSION" >> $GITHUB_ENV
 
-      - name: Import gpg key
-        if: ${{ runner.os == 'Linux' }}
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.APPIMAGE_PRIVATE_KEY }}
-          passphrase: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
+      #- name: Import gpg key
+      #  if: ${{ runner.os == 'Linux' }}
+      #  uses: crazy-max/ghaction-import-gpg@v6
+      #  with:
+      #    gpg_private_key: ${{ secrets.APPIMAGE_PRIVATE_KEY }}
+      #    passphrase: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
@@ -115,7 +115,8 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          args: --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}
+          args: --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
+          releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
           releaseDraft: true
