@@ -104,7 +104,7 @@ jobs:
         env:
           # GitHub Release
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          #AppImage signing
+          # AppImage signing
           #SIGN: 1
           #SIGN_KEY: ${{ secrets.APPIMAGE_KEY_ID }}
           #APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
@@ -120,8 +120,7 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           args: |
-            --config ${{ env.channel == 'nightly' && 'gitbutler-app/tauri.conf.nightly.json' || 'gitbutler-app/tauri.conf.release.json' }}
-            --features ${{ env.channel == 'nightly' && 'devtools' || '' }}
+            --config ${{ env.channel == 'nightly' && 'gitbutler-app/tauri.conf.nightly.json' || 'gitbutler-app/tauri.conf.release.json' }} --features ${{ env.channel == 'nightly' && 'devtools' || '' }}
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
