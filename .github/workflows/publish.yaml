@@ -1,10 +1,6 @@
-name: "Publish"
-on:
-  workflow_run:
-    workflows: ["Nightly build"]
-    types:
-      - completed
+name: "Release"
 
+on:
   workflow_dispatch:
     inputs:
       channel:
@@ -14,96 +10,119 @@ on:
         options:
           - release
           - nightly
-      bump:
+      release-type:
         type: choice
         required: true
-        description: update type
+        description: semver update type
         options:
-          - undefined
           - patch
           - minor
           - major
 
 jobs:
-  publish-tauri:
+  publish:
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - macos-latest # [macOs, x64]
-          - macos-latest-xlarge # [macOs, ARM64]
-          - ubuntu-20.04 # [linux, x64]
-
+          - macos-latest
+          - macos-14 # M1
+          - ubuntu-20.04
+          - windows-latest
     runs-on: ${{ matrix.platform }}
-
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_NGALAIKO }} # custom token here so that we can push tags later
-      - uses: ./.github/actions/init-env-rust
-      - uses: ./.github/actions/init-env-node
 
-      - name: Set nightly params
-        if: ${{!!github.event.workflow_run }}
+      - name: Install dependencies on Ubuntu
+        if: ${{ runner.os == 'Linux' }}
         run: |
-          echo "channel=nightly" >> $GITHUB_ENV
-          echo "bump=patch" >> $GITHUB_ENV
+          sudo apt update
+          sudo apt install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Setup node and cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: Install frontend dependencies
+        run: pnpm install
 
       - name: Use input params
-        if: ${{ !github.event.workflow_run }}
         run: |
           echo "channel=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
-          echo "bump=${{ github.event.inputs.bump }}" >> $GITHUB_ENV
+          echo "bump=${{ github.event.inputs.release-type }}" >> $GITHUB_ENV
 
-      - name: Set env variable with version
+      - name: Get current version and set next version
         run: |
           CURRENT_VERSION="$(curl --silent "https://app.gitbutler.com/releases/${{ env.channel }}" | jq -r '.version')"
           NEXT_VERSION=$(./scripts/next.sh "${CURRENT_VERSION}" "${{ env.bump }}")
           echo "version=$NEXT_VERSION" >> $GITHUB_ENV
 
-      - name: import gpg key
-        if: runner.os == 'Linux'
+      - name: Import gpg key
+        if: ${{ runner.os == 'Linux' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.APPIMAGE_PRIVATE_KEY }}
           passphrase: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
 
-      - name: install linux dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Build
+        uses: tauri-apps/tauri-actions@v0
+        env:
+          # GitHub Release
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # AppImage signing
+          SIGN: 1
+          SIGN_KEY: ${{ secrets.APPIMAGE_KEY_ID }}
+          APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
+          # macOS signing
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
+          # Updater for NSIS, MSI, AppImage, App bundle
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          args: --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}
+          tagName: ${{ env.channel }}/__VERSION__
+          appVersion: ${{ env.version }}
+          releaseDraft: true
+          prerelease: ${{ env.channel == 'release' && false || true }}
 
-      - name: Build binary
+      - name: Copy binaries
         run: |
-          ./scripts/release.sh \
-            --sign \
-            --channel                    "${{ env.channel }}" \
-            --dist                       "./release" \
-            --version                    "${{ env.version }}" \
-            --tauri-private-key          "${{ secrets.TAURI_PRIVATE_KEY }}"  \
-            --tauri-key-password         "${{ secrets.TAURI_KEY_PASSWORD }}" \
-            --apple-certificate          "${{ secrets.APPLE_CERTIFICATE }}" \
-            --apple-certificate-password "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" \
-            --apple-signing-identity     "${{ secrets.APPLE_SIGNING_IDENTITY }}" \
-            --apple-id                   "${{ secrets.APPLE_ID }}" \
-            --apple-team-id              "${{ secrets.APPLE_PROVIDER_SHORT_NAME }}" \
-            --apple-password             "${{ secrets.APPLE_PASSWORD }}" \
-            --appimage-key-id            "${{ secrets.APPIMAGE_KEY_ID }}" \
-            --appimage-key-passphrase    "${{ secrets.APPIMAGE_KEY_PASSPHRASE }}"
+          os=$(uname -s)
+          arch=$(uname -m)
+          if [ $arch == 'arm64' ]; then
+            arch='aarch64'
+          fi
+          mkdir -p release/${os,,}/$arch
+          cp target/release/bundle/*/*.{deb,AppImage,dmg,tar.gz,tar.gz.sig} release/${os,,}/$arch
 
-      - uses: shallwefootball/s3-upload-action@master
-        name: Upload To S3
+      - name: Upload To S3
+        uses: shallwefootball/s3-upload-action@master
         id: S3
         with:
           aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
           aws_bucket: "releases.gitbutler.com"
-          source_dir: "release/"
+          source_dir: "release/" # target/release/bundle/<bundle>/<bundle>.deb to release/$os/$arch/<bundle>.deb
           destination_dir: "releases/${{ env.channel }}/${{ env.version }}-${{ github.run_number }}"
 
-      # tell our server to update with the version number
       - name: Tell our server to update
         run: |
           curl 'https://app.gitbutler.com/api/releases' \
@@ -112,27 +131,3 @@ jobs:
             --header 'Content-Type: application/json' \
             --header 'X-Auth-Token: ${{ secrets.BOT_AUTH_TOKEN }}' \
             --data '{"channel":"${{ env.channel }}","version":"${{ env.version }}-${{ github.run_number }}","sha":"${{ github.sha }}"}'
-
-      - name: Tag release
-        env:
-          TAG_NAME: "${{ env.channel }}/${{ env.version }}"
-        run: |
-          function tag_exists() {
-            git tag --list | grep -q "^$1$"
-          }
-          function fetch_tag() {
-            git fetch origin "refs/tags/$1:refs/tags/$1"
-          }
-          function delete_tag() {
-            git push --delete origin "$1"
-          }
-          function create_tag() {
-            git tag --force "$1"
-            git push --tags
-          }
-
-          fetch_tag "$TAG_NAME" || true
-          if tag_exists "$TAG_NAME"; then
-            delete_tag "$TAG_NAME"
-          fi
-          create_tag "$TAG_NAME"
