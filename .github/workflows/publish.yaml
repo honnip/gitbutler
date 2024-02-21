@@ -35,8 +35,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_NGALAIKO }} # custom token here so that we can push tags later
+        # with:
+        #  token: ${{ secrets.PAT_NGALAIKO }} # custom token here so that we can push tags later
 
       - name: Install dependencies on Ubuntu
         if: ${{ runner.os == 'Linux' }}
