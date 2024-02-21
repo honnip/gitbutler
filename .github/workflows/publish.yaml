@@ -83,6 +83,7 @@ jobs:
           echo "bump=${{ github.event.inputs.release-type }}" >> $GITHUB_ENV
 
       - name: Get current version and set next version
+        shell: bash
         run: |
           CURRENT_VERSION="$(curl --silent "https://app.gitbutler.com/releases/${{ env.channel }}" | jq -r '.version')"
           NEXT_VERSION=$(./scripts/next.sh "${CURRENT_VERSION}" "${{ env.bump }}")
@@ -97,25 +98,27 @@ jobs:
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
-        env:
+        #env:
           # GitHub Release
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # AppImage signing
-          SIGN: 1
-          SIGN_KEY: ${{ secrets.APPIMAGE_KEY_ID }}
-          APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
+          #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #AppImage signing
+          #SIGN: 1
+          #SIGN_KEY: ${{ secrets.APPIMAGE_KEY_ID }}
+          #APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.APPIMAGE_KEY_PASSPHRASE }}
           # macOS signing
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
+          #APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          #APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          #APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          #APPLE_ID: ${{ secrets.APPLE_ID }}
+          #APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          #APPLE_TEAM_ID: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
           # Updater for NSIS, MSI, AppImage, App bundle
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          #TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          #TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          args: --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}'
+          args: |
+            --config ${{ env.channel == 'release' && 'gitbutler-app/tauri.conf.release.json' || 'gitbutler-app/tauri.conf.nightly.json' }}' \
+            --features ${{ env.channel == 'release' && '' || 'devtools' }}
           releaseName: 'GitButler ${{ env.channel }} __VERSION__'
           tagName: ${{ env.channel }}/__VERSION__
           appVersion: ${{ env.version }}
@@ -133,21 +136,21 @@ jobs:
           mkdir -p release/${os,,}/$arch
           cp target/release/bundle/*/*.{deb,AppImage,dmg,tar.gz,tar.gz.sig} release/${os,,}/$arch
 
-      - name: Upload To S3
-        uses: shallwefootball/s3-upload-action@master
-        id: S3
-        with:
-          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          aws_bucket: "releases.gitbutler.com"
-          source_dir: "release/" # target/release/bundle/<bundle>/<bundle>.deb to release/$os/$arch/<bundle>.deb
-          destination_dir: "releases/${{ env.channel }}/${{ env.version }}-${{ github.run_number }}"
+      #- name: Upload To S3
+      #  uses: shallwefootball/s3-upload-action@master
+      #  id: S3
+      #  with:
+      #    aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #    aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+      #    aws_bucket: "releases.gitbutler.com"
+      #    source_dir: "release/" # target/release/bundle/<bundle>/<bundle>.deb to release/$os/$arch/<bundle>.deb
+      #    destination_dir: "releases/${{ env.channel }}/${{ env.version }}-${{ github.run_number }}"
 
-      - name: Tell our server to update
-        run: |
-          curl 'https://app.gitbutler.com/api/releases' \
-            --fail \
-            --request POST \
-            --header 'Content-Type: application/json' \
-            --header 'X-Auth-Token: ${{ secrets.BOT_AUTH_TOKEN }}' \
-            --data '{"channel":"${{ env.channel }}","version":"${{ env.version }}-${{ github.run_number }}","sha":"${{ github.sha }}"}'
+      #- name: Tell our server to update
+      #  run: |
+      #    curl 'https://app.gitbutler.com/api/releases' \
+      #      --fail \
+      #      --request POST \
+      #      --header 'Content-Type: application/json' \
+      #      --header 'X-Auth-Token: ${{ secrets.BOT_AUTH_TOKEN }}' \
+      #      --data '{"channel":"${{ env.channel }}","version":"${{ env.version }}-${{ github.run_number }}","sha":"${{ github.sha }}"}'
