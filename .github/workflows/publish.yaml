@@ -91,6 +91,7 @@ jobs:
           CURRENT_VERSION="$(curl --silent "https://app.gitbutler.com/releases/${{ env.channel }}" | jq -r '.version')"
           NEXT_VERSION=$(./scripts/next.sh "${CURRENT_VERSION}" "${{ env.bump }}")
           echo "version=$NEXT_VERSION" >> $GITHUB_ENV
+          echo "::notice::Version: $CURRENT_VERSION -> $NEXT_VERSION"
 
       #- name: Import gpg key
       #  if: ${{ runner.os == 'Linux' }}
