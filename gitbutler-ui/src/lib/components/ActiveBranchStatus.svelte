@@ -1,7 +1,9 @@
 <script lang="ts">
 	import Tag from '$lib/components/Tag.svelte';
+	import ViewPrContextMenu from '$lib/components/ViewPrContextMenu.svelte';
 	import { normalizeBranchName } from '$lib/utils/branch';
-	import { open } from '@tauri-apps/api/shell';
+	import { openExternalUrl } from '$lib/utils/url';
+	import { onDestroy } from 'svelte';
 	import type { Persisted } from '$lib/persisted/persisted';
 	import type { BaseBranch, Branch } from '$lib/vbranches/types';
 
@@ -11,6 +13,22 @@
 	export let isUnapplied = false;
 	export let hasIntegratedCommits = false;
 	export let isLaneCollapsed: Persisted<boolean>;
+
+	function updateContextMenu(copyablePrUrl: string) {
+		if (popupMenu) popupMenu.$destroy();
+		return new ViewPrContextMenu({
+			target: document.body,
+			props: { prUrl: copyablePrUrl }
+		});
+	}
+
+	$: popupMenu = updateContextMenu(prUrl || '');
+
+	onDestroy(() => {
+		if (popupMenu) {
+			popupMenu.$destroy();
+		}
+	});
 </script>
 
 {#if !branch.upstream}
@@ -66,7 +84,7 @@
 		verticalOrientation={$isLaneCollapsed}
 		on:click={(e) => {
 			const url = base?.branchUrl(branch.upstream?.name);
-			if (url) open(url);
+			if (url) openExternalUrl(url);
 			e.preventDefault();
 			e.stopPropagation();
 		}}
@@ -82,9 +100,13 @@
 			verticalOrientation={$isLaneCollapsed}
 			on:click={(e) => {
 				const url = prUrl;
-				if (url) open(url);
+				if (url) openExternalUrl(url);
 				e.preventDefault();
 				e.stopPropagation();
+			}}
+			on:contextmenu={(e) => {
+				e.preventDefault();
+				popupMenu.openByMouse(e, undefined);
 			}}
 		>
 			View PR

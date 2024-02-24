@@ -3,8 +3,10 @@
 	import Tag from './Tag.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ViewPrContextMenu from '$lib/components/ViewPrContextMenu.svelte';
 	import { tooltip } from '$lib/utils/tooltip';
-	import { open } from '@tauri-apps/api/shell';
+	import { openExternalUrl } from '$lib/utils/url';
+	import { onDestroy } from 'svelte';
 	import toast from 'svelte-french-toast';
 	import type { PullRequest } from '$lib/github/types';
 	import type { BranchController } from '$lib/vbranches/branchController';
@@ -22,6 +24,22 @@
 	let meatballButton: HTMLDivElement;
 	let container: HTMLDivElement;
 	let isApplying = false;
+
+	function updateContextMenu(copyablePrUrl: string) {
+		if (popupMenu) popupMenu.$destroy();
+		return new ViewPrContextMenu({
+			target: document.body,
+			props: { prUrl: copyablePrUrl }
+		});
+	}
+
+	$: popupMenu = updateContextMenu(pr?.htmlUrl || '');
+
+	onDestroy(() => {
+		if (popupMenu) {
+			popupMenu.$destroy();
+		}
+	});
 </script>
 
 <div class="header__wrapper">
@@ -45,7 +63,7 @@
 					shrinkable
 					on:click={(e) => {
 						const url = base?.branchUrl(branch.name);
-						if (url) open(url);
+						if (url) openExternalUrl(url);
 						e.preventDefault();
 						e.stopPropagation();
 					}}
@@ -60,7 +78,7 @@
 						clickable
 						on:click={(e) => {
 							const url = pr?.htmlUrl;
-							if (url) open(url);
+							if (url) openExternalUrl(url);
 							e.preventDefault();
 							e.stopPropagation();
 						}}
